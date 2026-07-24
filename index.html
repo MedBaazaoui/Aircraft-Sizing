@@ -23,6 +23,7 @@
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%231c1b1a'/%3E%3C!-- fuselage --%3E%3Cellipse cx='16' cy='16' rx='2.5' ry='11' fill='%23d98e4a'/%3E%3C!-- wings --%3E%3Cellipse cx='16' cy='15' rx='14' ry='3' fill='%238fc4cc' opacity='0.9'/%3E%3C!-- tail --%3E%3Cellipse cx='16' cy='25' rx='6' ry='1.8' fill='%238fc4cc' opacity='0.7'/%3E%3C/svg%3E">
 <style>
   :root{
+    color-scheme: dark;
     --bg: #1c1b1a;
     --bg-deep: #141312;
     --bg-raised: #242322;
@@ -186,6 +187,7 @@
     flex-direction: column;
     gap: 0.4rem;
     position: relative;
+    min-width: 0;
   }
   .field label{
     font-size: 0.82rem;
@@ -214,6 +216,13 @@
   }
   .field select{
     cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23b8b2a8' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.85rem center;
+    padding-right: 2.2rem;
   }
   .field select option{
     background: var(--bg-input);
@@ -223,6 +232,18 @@
     outline: none;
     border-color: var(--accent);
     background: var(--bg-deep);
+  }
+  /* Native number-spinner arrows render inconsistently across browsers/OS
+     themes (partial clipping, misaligned corners) and don't match the
+     tool's design language regardless — removed entirely rather than
+     patched, since typing/editing directly works fine for these fields. */
+  .field input[type=number]{
+    -moz-appearance: textfield;
+  }
+  .field input[type=number]::-webkit-outer-spin-button,
+  .field input[type=number]::-webkit-inner-spin-button{
+    -webkit-appearance: none;
+    margin: 0;
   }
   .field input.computed{
     border-style: dashed;
@@ -5007,15 +5028,25 @@ async function shareCurrentDesign(){
 }
 document.getElementById('tab-share-btn').addEventListener('click', shareCurrentDesign);
 
-function openSharedDesignTab(incomingState, snap){
-  // Never overwrite the visitor's own in-progress design — open the
-  // shared one in a fresh tab, same mechanism newDesign() already uses.
-  if (tabDesigns.length >= MAX_TABS){
+function openSharedDesignTab(incomingState, snap, replaceBlankTab){
+  if (replaceBlankTab){
+    // Fresh visit via a share link, not a returning session — the default
+    // "Design 1" tab that INIT just created has nothing in it yet, so
+    // there's no reason to leave it sitting empty next to the shared
+    // design. The shared design simply becomes tab 1 instead of tab 2.
+    tabDesigns[activeTabIdx].name  = 'Shared Design';
+    tabDesigns[activeTabIdx].state = incomingState;
+    tabDesigns[activeTabIdx].snap  = snap;
+    Object.assign(state, JSON.parse(JSON.stringify(incomingState)));
+    restoreDOM(snap);
+  } else if (tabDesigns.length >= MAX_TABS){
     // At the tab limit — restore into the current tab rather than fail
     // silently. Rare case (visitor already has 6 designs open).
     Object.assign(state, JSON.parse(JSON.stringify(incomingState)));
     restoreDOM(snap);
   } else {
+    // Returning visitor with their own work already in progress — never
+    // overwrite that. Open the shared one in a fresh tab instead.
     tabDesigns[activeTabIdx].snap  = snapshotDOM();
     tabDesigns[activeTabIdx].state = JSON.parse(JSON.stringify(state));
     tabDesigns.push({ name: 'Shared Design', state: incomingState, snap: snap });
@@ -5030,13 +5061,13 @@ function openSharedDesignTab(incomingState, snap){
   renderTabBar();
 }
 
-function tryOpenSharedLink(){
+function tryOpenSharedLink(isFreshVisit){
   const m = location.hash.match(/^#share=(.+)$/);
   if (!m) return false;
   try {
     const json = decodeURIComponent(escape(atob(m[1])));
     const payload = JSON.parse(json);
-    openSharedDesignTab(payload.state, payload.snap);
+    openSharedDesignTab(payload.state, payload.snap, isFreshVisit);
   } catch(err){
     console.warn('Could not open shared design link — link may be corrupted.', err);
     return false;
@@ -5152,9 +5183,10 @@ if(_sessionRestored){
 }
 
 // Opening a shared link happens after normal init (session restore or
-// fresh start) so it always lands in a new tab rather than racing the
-// visitor's own restored session.
-if (tryOpenSharedLink()) saveSession();
+// fresh start). On a fresh visit (no prior session) the shared design
+// replaces the empty default tab rather than sitting next to it — a
+// returning visitor's own in-progress tabs are always left alone.
+if (tryOpenSharedLink(!_sessionRestored)) saveSession();
 </script>
 
 </body>
