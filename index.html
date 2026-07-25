@@ -991,7 +991,7 @@
             </div>
             <div class="choice-card" data-value="lsa">
               <div class="title">Light Sport (LSA)</div>
-              <div class="desc">Up to ~1320 lb MTOW, 2 seats, defined performance caps.</div>
+              <div class="desc">Stall-speed-defined under MOSAIC (eff. Jul 2026) — no fixed weight cap, up to 4 seats. This tool currently models up to 2 (see seating below).</div>
             </div>
           </div>
         </div>
@@ -1000,6 +1000,7 @@
           <label>Seating Configuration
             <span class="info-icon">i<span class="tooltip">Tandem seating gives a longer, narrower fuselage — generally a longer tail arm, meaning smaller tail surfaces for the same stability. Side-by-side is wider and usually shorter.</span></span>
           </label>
+          <div class="note" style="margin-bottom:0.6rem;">Up to 2 seats modeled for now. LSA can legally go up to 4 seats under MOSAIC, but that needs its own fuselage/CG calibration against real 4-seat reference aircraft rather than extrapolating from these — on the list, not yet built.</div>
           <div class="choice-grid" data-group="seating">
             <div class="choice-card" data-value="single">
               <div class="title">Single Seat</div>
@@ -1166,7 +1167,7 @@
         <div class="field-grid cols-2">
           <div class="field">
             <label>Target Stall Speed (Vs) <span class="unit-tag" data-unit="speed">mph</span>
-              <span class="info-icon">i<span class="tooltip">The slowest speed your aircraft can fly before the wing stops producing enough lift. Part 103 limits clean stall to 24 kts (~28 mph). Lower stall speed = safer landings on short/rough strips, but pushes toward a larger wing.<span class="formula">W/S = (CLmax × Vs²) / 391</span></span></span>
+              <span class="info-icon">i<span class="tooltip">The slowest speed your aircraft can fly before the wing stops producing enough lift. Part 103 limits power-off stall to 24 kts (~28 mph) — the regulation doesn't require this in clean configuration, so flaps can count toward meeting it. Lower stall speed = safer landings on short/rough strips, but pushes toward a larger wing.<span class="formula">W/S = (CLmax × Vs²) / 391</span></span></span>
             </label>
             <input type="number" id="stallSpeed" class="computed">
             <div class="note" id="stallSpeedNote"></div>
@@ -1773,11 +1774,17 @@ const missionFlapType = {
 // "typical" numbers: Part 103 caps ANY powered ultralight at 55kt (63mph)
 // CAS at FULL power in level flight (14 CFR 103.1) — cruise power is
 // necessarily less than full power, so these stay comfortably under that.
-// LSA (classic, pre-MOSAIC rule — consistent with the 1320lb MTOW figure
-// already used elsewhere in this tool) caps VH at 120kt (138mph) CAS at
-// max continuous power. Experimental has no equivalent hard cap; values
-// here are grounded in real reference cruisers already in this tool's own
-// database (Sonex-class designs cruise 145-170mph).
+// LSA: under the MOSAIC rule (LSA airworthiness certification phase
+// effective July 24, 2026), the old 1320lb/120kt-cruise/2-seat limits are
+// gone — LSA is now defined by stall speed (VS0 ≤ 61kt landing config)
+// rather than weight, with up to 4 seats and a 250kt max-continuous-power
+// cruise cap. The proposed cruise speeds below (90-125mph) stay well
+// under the new cap regardless — they were never anywhere near the old
+// 138mph ceiling either, so no change needed to the actual numbers, just
+// this comment and the cap-note text below.
+// Experimental has no equivalent hard cap; values here are grounded in
+// real reference cruisers already in this tool's own database (Sonex-
+// class designs cruise 145-170mph).
 const missionCruiseSpeed = {
   stol:     { part103: 48, experimental: 90,  lsa: 90  },
   balanced: { part103: 54, experimental: 115, lsa: 105 },
@@ -2159,7 +2166,7 @@ function applyCategoryDefaults(){
     const csDisplay = fromImperial(csProposal, 'speed').toFixed(0);
     const csUnit = unitLabels[state.units].speed;
     const capNote = state.category === 'part103' ? ` (Part 103 caps full-power level flight at ${fromImperial(63,'speed').toFixed(0)} ${csUnit} — this stays well under that.)`
-                  : state.category === 'lsa'      ? ` (classic LSA rule caps max continuous power at ${fromImperial(138,'speed').toFixed(0)} ${csUnit} — this stays well under that.)`
+                  : state.category === 'lsa'      ? ` (LSA under MOSAIC caps max-continuous-power cruise at ${fromImperial(288,'speed').toFixed(0)} ${csUnit} — this stays well under that.)`
                   : '';
     document.getElementById('cruiseSpeedNote').textContent =
       `Suggested for ${cat.label} / "${state.mission}" missions: ≈${csDisplay} ${csUnit}.${capNote}`;
